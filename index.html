@@ -1,0 +1,770 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Möbius Strip Simulation</title>
+  <meta name="description" content="Premium 3D Möbius Strip topology simulation with silver holographic surface and animated tracer particle." />
+  <link href="https://fonts.googleapis.com/css2?family=Orbitron:wght@400;500;700;900&family=Rajdhani:wght@300;400;500;600;700&family=Inter:wght@300;400&display=swap" rel="stylesheet">
+
+  <style>
+    *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      overflow: hidden;
+      background: #030508;
+      font-family: 'Rajdhani', sans-serif;
+      color: #fff;
+    }
+
+    canvas { display: block; }
+
+    /* ─── GLASSMORPHISM OVERLAY ─── */
+    #ui-overlay {
+      position: fixed;
+      top: 32px;
+      left: 32px;
+      max-width: 340px;
+      padding: 28px 30px 24px;
+      background: linear-gradient(135deg, rgba(15, 18, 30, 0.65), rgba(8, 10, 20, 0.55));
+      border: 1px solid rgba(180, 200, 240, 0.08);
+      border-radius: 20px;
+      backdrop-filter: blur(30px) saturate(1.5);
+      -webkit-backdrop-filter: blur(30px) saturate(1.5);
+      box-shadow:
+        0 0 80px rgba(100, 140, 255, 0.03),
+        inset 0 1px 0 rgba(255, 255, 255, 0.04),
+        0 20px 60px rgba(0, 0, 0, 0.5);
+      z-index: 10;
+      user-select: none;
+      animation: fadeSlideIn 1.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      opacity: 0;
+    }
+
+    @keyframes fadeSlideIn {
+      from { opacity: 0; transform: translateY(-20px) scale(0.96); }
+      to   { opacity: 1; transform: translateY(0) scale(1); }
+    }
+
+    #ui-overlay::before {
+      content: '';
+      position: absolute;
+      top: -1px; left: -1px; right: -1px; bottom: -1px;
+      border-radius: 21px;
+      background: linear-gradient(135deg, rgba(180,200,255,0.10), transparent 35%, transparent 65%, rgba(140,160,220,0.06));
+      z-index: -1;
+      pointer-events: none;
+    }
+
+    .ui-tag {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 8px;
+      font-weight: 700;
+      letter-spacing: 4px;
+      text-transform: uppercase;
+      color: rgba(160, 180, 220, 0.4);
+      margin-bottom: 14px;
+      padding: 4px 10px;
+      border: 1px solid rgba(160,180,220,0.08);
+      border-radius: 6px;
+      background: rgba(160,180,220,0.03);
+    }
+
+    .ui-tag .dot {
+      display: inline-block;
+      width: 5px; height: 5px;
+      border-radius: 50%;
+      background: rgba(100, 200, 160, 0.6);
+      animation: pulse 2s ease-in-out infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 0.4; }
+      50%      { opacity: 1; }
+    }
+
+    .ui-title {
+      font-family: 'Orbitron', sans-serif;
+      font-size: 20px;
+      font-weight: 900;
+      letter-spacing: 2.5px;
+      text-transform: uppercase;
+      background: linear-gradient(100deg, #8090b8, #d0d8f0, #f5f8ff, #d0d8f0, #8090b8);
+      background-size: 300% 100%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: shimmer 6s ease-in-out infinite;
+      margin-bottom: 16px;
+      line-height: 1.3;
+    }
+
+    @keyframes shimmer {
+      0%, 100% { background-position: 0% 50%; }
+      50%      { background-position: 100% 50%; }
+    }
+
+    .ui-divider {
+      height: 1px;
+      background: linear-gradient(90deg, rgba(140,160,220,0.20), rgba(100,120,180,0.05), transparent);
+      margin-bottom: 16px;
+      border: none;
+    }
+
+    .ui-desc {
+      font-family: 'Inter', sans-serif;
+      font-size: 12.5px;
+      font-weight: 300;
+      line-height: 1.85;
+      color: rgba(150, 165, 200, 0.55);
+      letter-spacing: 0.2px;
+    }
+
+    .ui-desc .hl {
+      color: rgba(190, 205, 240, 0.80);
+      font-weight: 400;
+    }
+
+    /* ─── BOTTOM STATS ─── */
+    #stats-overlay {
+      position: fixed;
+      bottom: 26px;
+      right: 32px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 9px;
+      letter-spacing: 2.5px;
+      color: rgba(140, 155, 190, 0.18);
+      z-index: 10;
+      text-align: right;
+      user-select: none;
+      animation: fadeSlideIn 2s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      opacity: 0;
+    }
+
+    .stat-line { margin-bottom: 4px; }
+
+    /* ─── CREDIT ─── */
+    #credit {
+      position: fixed;
+      bottom: 26px;
+      left: 32px;
+      font-family: 'Orbitron', sans-serif;
+      font-size: 8.5px;
+      letter-spacing: 3px;
+      text-transform: uppercase;
+      z-index: 10;
+      user-select: none;
+      animation: fadeSlideIn 2.4s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      opacity: 0;
+    }
+
+    #credit span.powered { color: rgba(130, 145, 180, 0.22); }
+    #credit span.brand {
+      background: linear-gradient(90deg, #a0acd0, #e8ecf8, #a0acd0);
+      background-size: 200% 100%;
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      animation: shimmer 5s ease-in-out infinite;
+      font-weight: 700;
+    }
+
+    /* ─── VIGNETTE ─── */
+    #vignette {
+      position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+      background: radial-gradient(ellipse at center, transparent 40%, rgba(0,0,0,0.55) 100%);
+      pointer-events: none; z-index: 4;
+    }
+
+    /* ─── HINT ─── */
+    #hint {
+      position: fixed;
+      bottom: 65px;
+      left: 50%;
+      transform: translateX(-50%);
+      font-family: 'Inter', sans-serif;
+      font-size: 11px;
+      font-weight: 300;
+      letter-spacing: 3px;
+      color: rgba(150, 165, 200, 0.18);
+      z-index: 10;
+      user-select: none;
+      animation: hintFade 7s ease-in-out forwards;
+      pointer-events: none;
+      text-transform: uppercase;
+    }
+
+    @keyframes hintFade {
+      0%   { opacity: 0; }
+      12%  { opacity: 1; }
+      70%  { opacity: 1; }
+      100% { opacity: 0; }
+    }
+
+    /* ─── LEGEND ─── */
+    #legend {
+      position: fixed;
+      top: 32px;
+      right: 32px;
+      font-family: 'Inter', sans-serif;
+      font-size: 11px;
+      font-weight: 300;
+      letter-spacing: 0.5px;
+      color: rgba(150, 165, 200, 0.35);
+      z-index: 10;
+      user-select: none;
+      animation: fadeSlideIn 2.6s cubic-bezier(0.22, 1, 0.36, 1) forwards;
+      opacity: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 8px;
+    }
+
+    .legend-item {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .legend-dot {
+      width: 8px; height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+
+    .legend-dot.tracer { background: #e04030; }
+    .legend-dot.front { background: linear-gradient(135deg, #a0a8c8, #d8dce8); }
+    .legend-dot.back { background: linear-gradient(135deg, #2a3458, #4a5478); }
+  </style>
+</head>
+<body>
+
+  <div id="ui-overlay">
+    <div class="ui-tag"><span class="dot"></span> TOPOLOGY VISUALIZER</div>
+    <h1 class="ui-title">Möbius Strip<br/>Simulation</h1>
+    <hr class="ui-divider" />
+    <p class="ui-desc">
+      A <span class="hl">topological space</span> with only one continuous side and one boundary.
+      Watch the tracer particle traverse the <span class="hl">entire surface</span> without ever crossing an edge.
+    </p>
+  </div>
+
+  <div id="legend">
+    <div class="legend-item"><div class="legend-dot tracer"></div> Tracer Particle</div>
+    <div class="legend-item"><div class="legend-dot front"></div> Front Surface</div>
+    <div class="legend-item"><div class="legend-dot back"></div> Back Surface</div>
+  </div>
+
+  <div id="stats-overlay">
+    <div class="stat-line">TOPOLOGY: NON-ORIENTABLE</div>
+    <div class="stat-line">SIDES: 1 &nbsp;│&nbsp; EDGES: 1</div>
+  </div>
+
+  <div id="credit">
+    <span class="powered">powered by </span><span class="brand">KITTEN CODE</span>
+  </div>
+
+  <div id="hint">drag to rotate &nbsp;·&nbsp; scroll to zoom</div>
+
+  <div id="vignette"></div>
+
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.164.1/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.164.1/examples/jsm/"
+    }
+  }
+  </script>
+
+  <script type="module">
+    import * as THREE from 'three';
+    import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+    import { EffectComposer } from 'three/addons/postprocessing/EffectComposer.js';
+    import { RenderPass } from 'three/addons/postprocessing/RenderPass.js';
+    import { UnrealBloomPass } from 'three/addons/postprocessing/UnrealBloomPass.js';
+
+    /* ═══════════════════════════════════════════
+       SCENE
+    ═══════════════════════════════════════════ */
+    const scene = new THREE.Scene();
+
+    const camera = new THREE.PerspectiveCamera(48, innerWidth / innerHeight, 0.1, 500);
+    camera.position.set(0, 3.5, 8);
+
+    const renderer = new THREE.WebGLRenderer({ antialias: true });
+    renderer.setSize(innerWidth, innerHeight);
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.1;
+    document.body.prepend(renderer.domElement);
+
+    /* ═══════════════════════════════════════════
+       SUBTLE BLOOM — luxury soft glow on edges only
+    ═══════════════════════════════════════════ */
+    const composer = new EffectComposer(renderer);
+    composer.addPass(new RenderPass(scene, camera));
+    const bloom = new UnrealBloomPass(
+      new THREE.Vector2(innerWidth, innerHeight),
+      0.15,   // very subtle
+      0.8,
+      0.82    // high threshold — only specular highlights glow
+    );
+    composer.addPass(bloom);
+
+    /* ═══════════════════════════════════════════
+       CONTROLS
+    ═══════════════════════════════════════════ */
+    const controls = new OrbitControls(camera, renderer.domElement);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.35;
+    controls.minDistance = 3;
+    controls.maxDistance = 20;
+    controls.enablePan = false;
+
+    /* ═══════════════════════════════════════════
+       BACKGROUND — deep space nebula
+    ═══════════════════════════════════════════ */
+    {
+      const g = new THREE.SphereGeometry(100, 64, 64);
+      const m = new THREE.ShaderMaterial({
+        side: THREE.BackSide,
+        vertexShader: `
+          varying vec3 vPos;
+          void main() {
+            vPos = (modelMatrix * vec4(position,1.0)).xyz;
+            gl_Position = projectionMatrix * modelViewMatrix * vec4(position,1.0);
+          }`,
+        fragmentShader: `
+          varying vec3 vPos;
+
+          // Simple hash for pseudo-random
+          float hash(vec2 p) {
+            return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453);
+          }
+
+          // Smooth noise
+          float noise(vec2 p) {
+            vec2 i = floor(p);
+            vec2 f = fract(p);
+            f = f * f * (3.0 - 2.0 * f);
+            float a = hash(i);
+            float b = hash(i + vec2(1.0, 0.0));
+            float c = hash(i + vec2(0.0, 1.0));
+            float d = hash(i + vec2(1.0, 1.0));
+            return mix(mix(a, b, f.x), mix(c, d, f.x), f.y);
+          }
+
+          void main() {
+            vec3 dir = normalize(vPos);
+            float t = (dir.y + 1.0) * 0.5;
+
+            // Deep space base gradient
+            vec3 bottom = vec3(0.005, 0.005, 0.015);
+            vec3 mid    = vec3(0.015, 0.02, 0.06);
+            vec3 top    = vec3(0.008, 0.012, 0.04);
+            vec3 c = mix(bottom, mid, smoothstep(0.0, 0.45, t));
+            c = mix(c, top, smoothstep(0.55, 1.0, t));
+
+            // Nebula clouds — subtle color patches
+            vec2 uv = dir.xz * 2.0;
+            float n1 = noise(uv * 1.5);
+            float n2 = noise(uv * 3.0 + 50.0);
+            float n3 = noise(uv * 0.8 + 100.0);
+
+            // Purple nebula
+            c += vec3(0.025, 0.008, 0.04) * smoothstep(0.4, 0.7, n1) * 0.6;
+            // Blue nebula
+            c += vec3(0.005, 0.015, 0.04) * smoothstep(0.45, 0.75, n2) * 0.5;
+            // Warm nebula hint
+            c += vec3(0.02, 0.01, 0.005) * smoothstep(0.5, 0.8, n3) * 0.3;
+
+            gl_FragColor = vec4(c, 1.0);
+          }`
+      });
+      scene.add(new THREE.Mesh(g, m));
+    }
+
+    /* ═══════════════════════════════════════════
+       MÖBIUS GEOMETRY
+    ═══════════════════════════════════════════ */
+    const R = 2.5, W = 0.85;
+    const SU = 200, SV = 20;
+
+    function mp(u, v) {
+      const h = u * 0.5;
+      const x = (R + v * W * Math.cos(h)) * Math.cos(u);
+      const y = (R + v * W * Math.cos(h)) * Math.sin(u);
+      const z = v * W * Math.sin(h);
+      return new THREE.Vector3(x, z, y);  // swap y/z for Three.js
+    }
+
+    /* Surface normal at (u, v) via cross product of tangent vectors */
+    function mobiusNormal(u, v) {
+      const eps = 0.001;
+      const du = new THREE.Vector3().subVectors(mp(u + eps, v), mp(u - eps, v));
+      const dv = new THREE.Vector3().subVectors(mp(u, v + eps), mp(u, v - eps));
+      return new THREE.Vector3().crossVectors(du, dv).normalize();
+    }
+
+    const positions = [], indices = [], uvCoords = [];
+    for (let i = 0; i <= SU; i++) {
+      const u = (i / SU) * Math.PI * 2;
+      for (let j = 0; j <= SV; j++) {
+        const v = (j / SV) * 2 - 1;
+        const p = mp(u, v);
+        positions.push(p.x, p.y, p.z);
+        uvCoords.push(i / SU, j / SV);
+      }
+    }
+    for (let i = 0; i < SU; i++)
+      for (let j = 0; j < SV; j++) {
+        const a = i * (SV + 1) + j, b = a + SV + 1;
+        indices.push(a, b, a + 1, b, b + 1, a + 1);
+      }
+
+    const geo = new THREE.BufferGeometry();
+    geo.setAttribute('position', new THREE.Float32BufferAttribute(positions, 3));
+    geo.setAttribute('uv', new THREE.Float32BufferAttribute(uvCoords, 2));
+    geo.setIndex(indices);
+    geo.computeVertexNormals();
+
+    /* ═══════════════════════════════════════════
+       PREMIUM SURFACE MATERIALS
+    ═══════════════════════════════════════════ */
+
+    // FRONT — polished silver/platinum with warm highlight
+    const frontMat = new THREE.MeshPhysicalMaterial({
+      color: 0xd0d6e4,
+      emissive: 0x1a1e2c,
+      emissiveIntensity: 0.18,
+      metalness: 0.82,
+      roughness: 0.18,
+      clearcoat: 0.6,
+      clearcoatRoughness: 0.12,
+      reflectivity: 0.9,
+      side: THREE.FrontSide,
+    });
+    scene.add(new THREE.Mesh(geo, frontMat));
+
+    // BACK — deep matte navy-indigo
+    const backMat = new THREE.MeshPhysicalMaterial({
+      color: 0x3a4268,
+      emissive: 0x0c1020,
+      emissiveIntensity: 0.12,
+      metalness: 0.35,
+      roughness: 0.65,
+      side: THREE.BackSide,
+    });
+    scene.add(new THREE.Mesh(geo, backMat));
+
+    /* ─── Subtle surface grid (holographic feel) ─── */
+    {
+      const c = document.createElement('canvas');
+      c.width = c.height = 512;
+      const ctx = c.getContext('2d');
+      ctx.clearRect(0, 0, 512, 512);
+      ctx.strokeStyle = 'rgba(160, 180, 240, 0.08)';
+      ctx.lineWidth = 0.6;
+      for (let x = 0; x <= 512; x += 512 / 40) {
+        ctx.beginPath(); ctx.moveTo(x, 0); ctx.lineTo(x, 512); ctx.stroke();
+      }
+      for (let y = 0; y <= 512; y += 512 / 5) {
+        ctx.beginPath(); ctx.moveTo(0, y); ctx.lineTo(512, y); ctx.stroke();
+      }
+      const gridTex = new THREE.CanvasTexture(c);
+      gridTex.wrapS = gridTex.wrapT = THREE.RepeatWrapping;
+
+      const gridMat = new THREE.MeshBasicMaterial({
+        map: gridTex,
+        transparent: true,
+        opacity: 0.2,
+        side: THREE.DoubleSide,
+        depthWrite: false,
+      });
+      scene.add(new THREE.Mesh(geo, gridMat));
+    }
+
+    /* ─── Thin edge highlight lines (cyan accent) ─── */
+    function makeEdge(vVal) {
+      const pts = [];
+      for (let i = 0; i <= SU; i++) pts.push(mp((i / SU) * Math.PI * 2, vVal));
+      const g2 = new THREE.BufferGeometry().setFromPoints(pts);
+      scene.add(new THREE.Line(g2, new THREE.LineBasicMaterial({
+        color: 0x40c8e0, transparent: true, opacity: 0.12
+      })));
+    }
+    makeEdge(1);
+    makeEdge(-1);
+
+    /* ─── Animated orbit rings (sci-fi decoration) ─── */
+    const orbitRing1 = new THREE.Mesh(
+      new THREE.TorusGeometry(3.8, 0.003, 8, 200),
+      new THREE.MeshBasicMaterial({ color: 0x30a0c0, transparent: true, opacity: 0.08 })
+    );
+    orbitRing1.rotation.x = Math.PI * 0.52;
+    orbitRing1.rotation.z = 0.15;
+    scene.add(orbitRing1);
+
+    const orbitRing2 = new THREE.Mesh(
+      new THREE.TorusGeometry(4.3, 0.002, 8, 220),
+      new THREE.MeshBasicMaterial({ color: 0x2080a0, transparent: true, opacity: 0.05 })
+    );
+    orbitRing2.rotation.x = Math.PI * 0.48;
+    orbitRing2.rotation.z = -0.2;
+    scene.add(orbitRing2);
+
+    const orbitRing3 = new THREE.Mesh(
+      new THREE.TorusGeometry(4.8, 0.002, 8, 240),
+      new THREE.MeshBasicMaterial({ color: 0x1868a0, transparent: true, opacity: 0.035 })
+    );
+    orbitRing3.rotation.x = Math.PI * 0.55;
+    orbitRing3.rotation.z = 0.3;
+    scene.add(orbitRing3);
+
+    /* ═══════════════════════════════════════════
+       LUXURY LIGHTING SETUP
+    ═══════════════════════════════════════════ */
+    // Soft ambient fill
+    scene.add(new THREE.AmbientLight(0x2a3048, 1.0));
+
+    // Key light — bright silver from upper right
+    const keyLight = new THREE.PointLight(0xf0f4ff, 5, 50);
+    keyLight.position.set(6, 7, 5);
+    scene.add(keyLight);
+
+    // Fill light — soft blue from lower left
+    const fillLight = new THREE.PointLight(0x6878b0, 2, 40);
+    fillLight.position.set(-6, -3, -5);
+    scene.add(fillLight);
+
+    // Rim light — bright from behind for edge definition
+    const rimLight = new THREE.PointLight(0xe8e0ff, 2.5, 30);
+    rimLight.position.set(-2, 5, -6);
+    scene.add(rimLight);
+
+    // Top fill
+    const topLight = new THREE.DirectionalLight(0xd8e0f8, 0.7);
+    topLight.position.set(0, 8, 0);
+    scene.add(topLight);
+
+    /* ═══════════════════════════════════════════
+       STARFIELD — multi-layer space stars
+    ═══════════════════════════════════════════ */
+    function createStarLayer(count, spread, sizeMin, sizeMax, color, opacity) {
+      const geo = new THREE.BufferGeometry();
+      const pos = new Float32Array(count * 3);
+      const sizes = new Float32Array(count);
+      for (let i = 0; i < count; i++) {
+        pos[i * 3]     = (Math.random() - 0.5) * spread;
+        pos[i * 3 + 1] = (Math.random() - 0.5) * spread;
+        pos[i * 3 + 2] = (Math.random() - 0.5) * spread;
+        sizes[i] = sizeMin + Math.random() * (sizeMax - sizeMin);
+      }
+      geo.setAttribute('position', new THREE.Float32BufferAttribute(pos, 3));
+      geo.setAttribute('size', new THREE.Float32BufferAttribute(sizes, 1));
+
+      const mat = new THREE.ShaderMaterial({
+        uniforms: {
+          uColor: { value: new THREE.Color(color) },
+          uOpacity: { value: opacity },
+          uTime: { value: 0 },
+        },
+        vertexShader: `
+          attribute float size;
+          varying float vSize;
+          void main() {
+            vSize = size;
+            vec4 mv = modelViewMatrix * vec4(position, 1.0);
+            gl_Position = projectionMatrix * mv;
+            gl_PointSize = size * (200.0 / -mv.z);
+          }`,
+        fragmentShader: `
+          uniform vec3 uColor;
+          uniform float uOpacity;
+          varying float vSize;
+          void main() {
+            float d = length(gl_PointCoord - vec2(0.5));
+            if (d > 0.5) discard;
+            float core = smoothstep(0.5, 0.0, d);
+            float glow = smoothstep(0.5, 0.1, d) * 0.4;
+            float alpha = (core + glow) * uOpacity;
+            gl_FragColor = vec4(uColor, alpha);
+          }`,
+        transparent: true,
+        depthWrite: false,
+      });
+
+      scene.add(new THREE.Points(geo, mat));
+      return mat;
+    }
+
+    // Dim background stars — many, tiny
+    createStarLayer(2000, 90, 0.03, 0.08, 0x8898cc, 0.4);
+    // Medium stars — moderate
+    createStarLayer(600, 80, 0.06, 0.14, 0xc0ccee, 0.55);
+    // Bright stars — few, larger
+    createStarLayer(120, 70, 0.10, 0.25, 0xeef0ff, 0.7);
+    // Warm accent stars — rare
+    createStarLayer(40, 65, 0.08, 0.18, 0xffd8aa, 0.5);
+
+    /* ═══════════════════════════════════════════
+       TRACER — small sphere + sci-fi reticle + pin line
+    ═══════════════════════════════════════════ */
+    const FLOAT_HEIGHT = 0.22;
+    const TRACER_V = 0.0;
+
+    // Tracer group (ball + reticle)
+    const tracerGroup = new THREE.Group();
+    scene.add(tracerGroup);
+
+    // Small core sphere
+    const tracer = new THREE.Mesh(
+      new THREE.SphereGeometry(0.04, 20, 20),
+      new THREE.MeshStandardMaterial({
+        color: 0xff3828,
+        emissive: 0xcc2010,
+        emissiveIntensity: 0.6,
+        roughness: 0.2,
+        metalness: 0.1,
+      })
+    );
+    tracerGroup.add(tracer);
+
+    // Outer reticle ring (rotating)
+    const reticle = new THREE.Mesh(
+      new THREE.TorusGeometry(0.09, 0.004, 6, 32),
+      new THREE.MeshBasicMaterial({ color: 0xff4030, transparent: true, opacity: 0.5 })
+    );
+    tracerGroup.add(reticle);
+
+    // Inner reticle ring (counter-rotating)
+    const reticle2 = new THREE.Mesh(
+      new THREE.TorusGeometry(0.065, 0.002, 6, 24),
+      new THREE.MeshBasicMaterial({ color: 0xff6050, transparent: true, opacity: 0.3 })
+    );
+    tracerGroup.add(reticle2);
+
+    // Pin line (surface → tracer)
+    const pinGeo = new THREE.BufferGeometry();
+    pinGeo.setAttribute('position', new THREE.Float32BufferAttribute(new Float32Array(6), 3));
+    const pinLine = new THREE.Line(pinGeo, new THREE.LineBasicMaterial({
+      color: 0xff4030, transparent: true, opacity: 0.25,
+    }));
+    scene.add(pinLine);
+
+    /* ─── Trail — solid line on the surface ─── */
+    const TL = 150;
+    const trailLine = [];
+    const trailGeo = new THREE.BufferGeometry();
+    const trailPositions = new Float32Array(TL * 3);
+    const trailAlphas = new Float32Array(TL);
+    trailGeo.setAttribute('position', new THREE.Float32BufferAttribute(trailPositions, 3));
+    trailGeo.setAttribute('alpha', new THREE.Float32BufferAttribute(trailAlphas, 1));
+
+    const trailMat = new THREE.ShaderMaterial({
+      vertexShader: `
+        attribute float alpha;
+        varying float vAlpha;
+        void main() {
+          vAlpha = alpha;
+          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+        }`,
+      fragmentShader: `
+        varying float vAlpha;
+        void main() {
+          gl_FragColor = vec4(0.88, 0.20, 0.12, vAlpha);
+        }`,
+      transparent: true,
+      depthWrite: false,
+    });
+
+    const trailMesh = new THREE.Line(trailGeo, trailMat);
+    scene.add(trailMesh);
+
+    /* Tracer position: on surface + floating above via normal */
+    function tracerPos(u) {
+      const surfacePos = mp(u, TRACER_V);
+      const normal = mobiusNormal(u, TRACER_V);
+      return surfacePos.add(normal.multiplyScalar(FLOAT_HEIGHT));
+    }
+
+    /* ═══════════════════════════════════════════
+       ANIMATION LOOP
+    ═══════════════════════════════════════════ */
+    const clock = new THREE.Clock();
+    let tU = 0;
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const dt = clock.getDelta();
+      const elapsed = clock.getElapsedTime();
+
+      /* Tracer — float above the Möbius surface */
+      tU += 0.4 * dt;
+      if (tU > Math.PI * 4) tU -= Math.PI * 4;
+
+      const tPos = tracerPos(tU);
+      tracerGroup.position.copy(tPos);
+
+      /* Reticle rotation */
+      reticle.rotation.x = elapsed * 1.5;
+      reticle.rotation.y = elapsed * 0.8;
+      reticle2.rotation.x = -elapsed * 1.2;
+      reticle2.rotation.z = elapsed * 1.0;
+
+      /* Pin line from surface to tracer */
+      const surfPt = mp(tU, TRACER_V);
+      const pinAttr = pinGeo.getAttribute('position');
+      pinAttr.setXYZ(0, surfPt.x, surfPt.y, surfPt.z);
+      pinAttr.setXYZ(1, tPos.x, tPos.y, tPos.z);
+      pinAttr.needsUpdate = true;
+
+      /* Orbit rings slow rotation */
+      orbitRing1.rotation.y = elapsed * 0.08;
+      orbitRing2.rotation.y = -elapsed * 0.05;
+      orbitRing3.rotation.y = elapsed * 0.03;
+
+      /* Trail — on the surface */
+      trailLine.unshift(mp(tU, TRACER_V));
+      if (trailLine.length > TL) trailLine.pop();
+
+      const pa = trailGeo.getAttribute('position');
+      const aa = trailGeo.getAttribute('alpha');
+      for (let i = 0; i < TL; i++) {
+        if (i < trailLine.length) {
+          pa.setXYZ(i, trailLine[i].x, trailLine[i].y, trailLine[i].z);
+          const f = 1 - i / trailLine.length;
+          aa.setX(i, f * f * 0.55);
+        } else {
+          pa.setXYZ(i, 0, 0, 0);
+          aa.setX(i, 0);
+        }
+      }
+      pa.needsUpdate = true;
+      aa.needsUpdate = true;
+      trailGeo.setDrawRange(0, trailLine.length);
+
+      controls.update();
+      composer.render();
+    }
+
+    animate();
+
+    /* ═══════════════════════════════════════════
+       RESIZE
+    ═══════════════════════════════════════════ */
+    addEventListener('resize', () => {
+      camera.aspect = innerWidth / innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(innerWidth, innerHeight);
+      composer.setSize(innerWidth, innerHeight);
+    });
+  </script>
+</body>
+</html>
